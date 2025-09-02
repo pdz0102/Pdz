@@ -1,120 +1,48 @@
-using UnityEngine;
-using UnityEngine.UI;
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
-public class AutoBlockUI : pdz
-{
-    [Header("UI")]
-    public Button toggleButton;
-    public Text buttonLabel;
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local root = char:WaitForChild("HumanoidRootPart")
 
-    [Header("Refs")]
-    public Animator playerAnimator;
-    public AudioSource audioSource;
-    public AudioClip blockStartSfx;
-    public AudioClip blockImpactSfx;
-    public Transform player;
-    public Transform enemy;
-    public EnemyAttackBroadcaster enemyAtk;
-
-    [Header("Blocking Settings")]
-    public float blockRange = 12f;      // chỉ block nếu enemy trong phạm vi
-    public float reactionDelay = 0.1f;  // tốc độ phản ứng (giây) - 0 = block ngay
-
-    bool isBlocking;
-    bool autoBlockEnabled = true; // mặc định bật
-
-    void Start()
-    {
-        if (toggleButton != null)
-        {
-            toggleButton.onClick.AddListener(ToggleAutoBlock);
-            UpdateButtonLabel();
-        }
-
-        if (killerAtk != null)
-        {
-            enemyAtk.OnWindupStarted += HandleEnemyWindup;
-            enemyAtk.OnAttackReleased += HandleEnemyAttackReleased;
-        }
-    }
-
-    void OnDestroy()
-    {
-        if (killerAtk != null)
-        {
-            enemyAtk.OnWindupStarted -= HandleEnemyWindup;
-            enemyAtk.OnAttackReleased -= HandleEnemyAttackReleased;
-        }
-    }
-
-    void ToggleAutoBlock()
-    {
-        autoBlockEnabled = !autoBlockEnabled;
-        UpdateButtonLabel();
-    }
-
-    void UpdateButtonLabel()
-    {
-        if (buttonLabel != null)
-            buttonLabel.text = autoBlockEnabled ? "AutoBlock: ON" : "AutoBlock: OFF";
-    }
-
-    void HandleKillerWindup(AttackInfo info)
-    {
-        if (!autoBlockEnabled) return;
-
-        float dist = Vector3.Distance(player.position, enemy.position);
-        if (dist <= blockRange)
-        {
-            // thêm delay để giả lập tốc độ phản ứng
-            Invoke(nameof(StartBlock), reactionDelay);
-        }
-    }
-
-    void HandleKillerAttackReleased(AttackInfo info)
-    {
-        if (!autoBlockEnabled) return;
-
-        if (isBlocking)
-        {
-            playerAnimator.SetTrigger("BlockImpact");
-            if (blockImpactSfx != null) audioSource.PlayOneShot(blockImpactSfx);
-        }
-
-        StopBlock();
-    }
-
-    void StartBlock()
-    {
-        if (isBlocking) return;
-        isBlocking = true;
-
-        playerAnimator.SetBool("IsBlocking", true);
-        if (blockStartSfx != null) audioSource.PlayOneShot(blockStartSfx);
-    }
-
-    void StopBlock()
-    {
-        if (!isBlocking) return;
-        isBlocking = false;
-
-        playerAnimator.SetBool("IsBlocking", false);
-    }
+-- Danh sách killers hợp lệ
+local killerNames = {
+	["1x1x1x1"] = true,
+	["Coolkid"] = true,
+	["Slasher"] = true,
+	["Noli"] = true,
+	["John Doe"] = true,
 }
 
-// ---------------- Killer Broadcaster ----------------
-public class KillerAttackBroadcaster : pdz
-{
-    public System.Action<AttackInfo> OnWindupStarted;
-    public System.Action<AttackInfo> OnAttackReleased;
+-- Settings
+local blockRange = 14-- khoảng cách (studs)
+local reactionDelay = 0.1  -- tốc độ phản ứng (giây)
+local autoBlockEnabled = true
 
-    public void AnimEvent_WindupStart() => OnWindupStarted?.Invoke(new AttackInfo());
-    public void AnimEvent_AttackRelease() => OnAttackReleased?.Invoke(new AttackInfo());
-}
+-- Hàm check kẻ địch trong danh sách
+local function getKillerInRange()
+	for name, _ in pairs(killerNames) do
+		local killer = workspace:FindFirstChild(name)
+		if killer and killer:FindFirstChild("HumanoidRootPart") then
+			local dist = (root.Position - killer.HumanoidRootPart.Position).Magnitude
+			if dist <= blockRange then
+				return killer
+			end
+		end
+	end
+	return nil
+end
 
-public struct AttackInfo
-{
-    public string name;
-    public float windupTime;
-    public float damage;
-}
+-- Vòng lặp auto block
+RunService.Heartbeat:Connect(function()
+	if autoBlockEnabled then
+		local killer = getKillerInRange()
+		if killer then
+			task.delay(reactionDelay, function()
+				if not blockSound.IsPlaying then
+					blockSound:Play()
+				end
+			end)
+		end
+	end
+end)
