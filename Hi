@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class AutoBlockUI : MonoBehaviour
+public class AutoBlockUI : pdz
 {
     [Header("UI")]
     public Button toggleButton;
@@ -31,7 +31,7 @@ public class AutoBlockUI : MonoBehaviour
             UpdateButtonLabel();
         }
 
-        if (enemyAtk != null)
+        if (killerAtk != null)
         {
             enemyAtk.OnWindupStarted += HandleEnemyWindup;
             enemyAtk.OnAttackReleased += HandleEnemyAttackReleased;
@@ -40,7 +40,7 @@ public class AutoBlockUI : MonoBehaviour
 
     void OnDestroy()
     {
-        if (enemyAtk != null)
+        if (killerAtk != null)
         {
             enemyAtk.OnWindupStarted -= HandleEnemyWindup;
             enemyAtk.OnAttackReleased -= HandleEnemyAttackReleased;
@@ -59,7 +59,7 @@ public class AutoBlockUI : MonoBehaviour
             buttonLabel.text = autoBlockEnabled ? "AutoBlock: ON" : "AutoBlock: OFF";
     }
 
-    void HandleEnemyWindup(AttackInfo info)
+    void HandleKillerWindup(AttackInfo info)
     {
         if (!autoBlockEnabled) return;
 
@@ -71,7 +71,7 @@ public class AutoBlockUI : MonoBehaviour
         }
     }
 
-    void HandleEnemyAttackReleased(AttackInfo info)
+    void HandleKillerAttackReleased(AttackInfo info)
     {
         if (!autoBlockEnabled) return;
 
@@ -102,8 +102,8 @@ public class AutoBlockUI : MonoBehaviour
     }
 }
 
-// ---------------- Enemy Broadcaster ----------------
-public class EnemyAttackBroadcaster : MonoBehaviour
+// ---------------- Killer Broadcaster ----------------
+public class KillerAttackBroadcaster : pdz
 {
     public System.Action<AttackInfo> OnWindupStarted;
     public System.Action<AttackInfo> OnAttackReleased;
