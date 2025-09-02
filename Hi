@@ -12,7 +12,13 @@ public class AutoBlockUI : MonoBehaviour
     public AudioSource audioSource;
     public AudioClip blockStartSfx;
     public AudioClip blockImpactSfx;
+    public Transform player;
+    public Transform enemy;
     public EnemyAttackBroadcaster enemyAtk;
+
+    [Header("Blocking Settings")]
+    public float blockRange = 12f;      // chỉ block nếu enemy trong phạm vi
+    public float reactionDelay = 0.1f;  // tốc độ phản ứng (giây) - 0 = block ngay
 
     bool isBlocking;
     bool autoBlockEnabled = true; // mặc định bật
@@ -56,7 +62,13 @@ public class AutoBlockUI : MonoBehaviour
     void HandleEnemyWindup(AttackInfo info)
     {
         if (!autoBlockEnabled) return;
-        StartBlock();
+
+        float dist = Vector3.Distance(player.position, enemy.position);
+        if (dist <= blockRange)
+        {
+            // thêm delay để giả lập tốc độ phản ứng
+            Invoke(nameof(StartBlock), reactionDelay);
+        }
     }
 
     void HandleEnemyAttackReleased(AttackInfo info)
