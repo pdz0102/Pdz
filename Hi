@@ -1,11 +1,11 @@
-local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local root = char:WaitForChild("HumanoidRootPart")
 
--- Danh sách killers hợp lệ
+-- Danh sách killers
 local killerNames = {
 	["1x1x1x1"] = true,
 	["Coolkid"] = true,
@@ -14,16 +14,37 @@ local killerNames = {
 	["John Doe"] = true,
 }
 
--- Settings
-local blockRange = 14-- khoảng cách (studs)
-local reactionDelay = 0.1  -- tốc độ phản ứng (giây)
+-- Tạo GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "AutoBlock(beta)"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(0.05, 0, 0.1, 0)
+button.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.Text = "AutoBlock: ON"
+button.Parent = gui
+
+-- Cài đặt
+local blockRange = 15
+local reactionDelay = 0.1
 local autoBlockEnabled = true
 
--- Hàm check kẻ địch trong danh sách
+-- Toggle nút
+button.MouseButton1Click:Connect(function()
+	autoBlockEnabled = not autoBlockEnabled
+	button.Text = autoBlockEnabled and "AutoBlock: ON" or "AutoBlock: OFF"
+	button.BackgroundColor3 = autoBlockEnabled and Color3.fromRGB(50,150,50) or Color3.fromRGB(150,50,50)
+end)
+
+-- Hàm check killer trong range
 local function getKillerInRange()
-	for name, _ in pairs(killerNames) do
+	for name in pairs(killerNames) do
 		local killer = workspace:FindFirstChild(name)
-		if killer and killer:FindFirstChild("HumanoidRootPart") then
+		if killer and killer:FindFirstChild("HumanoidRootPart") and root then
 			local dist = (root.Position - killer.HumanoidRootPart.Position).Magnitude
 			if dist <= blockRange then
 				return killer
@@ -33,13 +54,18 @@ local function getKillerInRange()
 	return nil
 end
 
--- Vòng lặp auto block
+-- Auto block loop
 RunService.Heartbeat:Connect(function()
+	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+	root = player.Character:FindFirstChild("HumanoidRootPart")
+
 	if autoBlockEnabled then
 		local killer = getKillerInRange()
 		if killer then
 			task.delay(reactionDelay, function()
-				if not blockSound.IsPlaying then
+				if autoBlockEnabled and not blockSound.IsPlaying then
 					blockSound:Play()
 				end
 			end)
