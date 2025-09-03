@@ -1,206 +1,39 @@
--- LocalScript: AutoBlock (Roblox Studio)
--- Đặt vào StarterPlayerScripts
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+                        local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
 
--- Cấu hình tên killer (dùng để so khớp tên model trong Workspace, case-insensitive, cho phép phần chứa)
-local killerKeywords = {
-    "1x1x1x1",
-    "coolkid",
-    "Slasher",
-    "Noli",
-    "John Doe",
-}
+-- Cấu hình
+local autoBlockDistance = 20 -- studs
+local blocking = false
 
--- UI + mặc định
-local autoBlockEnabled = true
-local blockRange = 15
-local reactionDelay = 0.1
-local blockCooldown = 0.5-- tránh spam liên tục
-local scanInterval = 0.6  -- quét workspace mỗi 0.6s
-local debugMode = false    -- bật true để in log debug
-
--- Helper: tìm root part cho 1 model (PrimaryPart, HumanoidRootPart, Torso, Upper/Lower Torso, Head, fallback)
-local function getModelRoot(model)
-    if not model or not model.Parent then return nil end
-    if model.PrimaryPart and model.PrimaryPart:IsA("BasePart") then return model.PrimaryPart end
-    local tryNames = {"HumanoidRootPart", "UpperTorso", "LowerTorso", "Torso", "Head"}
-    for _,n in ipairs(tryNames) do
-        local p = model:FindFirstChild(n, true)
-        if p and p:IsA("BasePart") then return p end
-    end
-    for _,d in ipairs(model:GetDescendants()) do
-        if d:IsA("BasePart") then return d end
-    end
-    return nil
+-- Hàm bật/tắt block
+local function setBlock(state)
+	if state and not blocking then
+		blocking = true
+		print("AutoBlock ON")
+		-- chạy animation / bật shield ở đây
+	elseif not state and blocking then
+		blocking = false
+		print("AutoBlock OFF")
+		-- tắt animation / shield
+	end
 end
 
--- Tạo GUI đơn giản
-local gui = Instance.new("ScreenGui")
-gui.Name = "AutoBlockUI"
-gui.ResetOnSpawn = false
-gui.Parent = PlayerGui
+-- Sự kiện khi killer dùng skill (giả sử server phát sự kiện này)
+local killerSkillEvent = ReplicatedStorage:WaitForChild("KillerSkillEvent")
 
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0,150,0,40)
-toggleBtn.Position = UDim2.new(0.05,0,0.08,0)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(50,150,50)
-toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
-toggleBtn.Font = Enum.Font.SourceSansBold
-toggleBtn.Text = "AutoBlock: ON"
-toggleBtn.Parent = gui
-
-local rangeBox = Instance.new("TextBox")
-rangeBox.Size = UDim2.new(0,150,0,30)
-rangeBox.Position = UDim2.new(0.05,0,0.16,0)
-rangeBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
-rangeBox.TextColor3 = Color3.fromRGB(255,255,255)
-rangeBox.PlaceholderText = "Range (studs)"
-rangeBox.Text = tostring(blockRange)
-rangeBox.Parent = gui
-
-local delayBox = Instance.new("TextBox")
-delayBox.Size = UDim2.new(0,150,0,30)
-delayBox.Position = UDim2.new(0.05,0,0.22,0)
-delayBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
-delayBox.TextColor3 = Color3.fromRGB(255,255,255)
-delayBox.PlaceholderText = "Delay (s)"
-delayBox.Text = tostring(reactionDelay)
-delayBox.Parent = gui
-
--- Sound (tạo lại khi respawn)
-local blockSound -- will be created per-character
-
-local function createBlockSound(parent)
-    if blockSound then
-        blockSound:Destroy()
-        blockSound = nil
-    end
-    if not parent then return end
-    blockSound = Instance.new("Sound")
-    blockSound.Name = "AutoBlockSound"
-    blockSound.SoundId = "rbxassetid://12222242" -- thay đổi nếu muốn
-    blockSound.Volume = 1
-    blockSound.Parent = parent
-end
-
--- Character handling
-local char = player.Character
-local root = nil
-
-local function onCharacterAdded(c)
-    char = c
-    root = nil
-    root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
-    if not root then
-        -- cố gắng chờ một chút
-        root = char:WaitForChild("HumanoidRootPart", 5) or char:FindFirstChild("Torso")
-    end
-    createBlockSound(root)
-    if debugMode then print("AutoBlock: character ready, root =", root) end
-end
-
-player.CharacterAdded:Connect(onCharacterAdded)
-if player.Character then
-    onCharacterAdded(player.Character)
-end
-
--- Toggle UI events
-toggleBtn.MouseButton1Click:Connect(function()
-    autoBlockEnabled = not autoBlockEnabled
-    toggleBtn.Text = autoBlockEnabled and "AutoBlock: ON" or "AutoBlock: OFF"
-    toggleBtn.BackgroundColor3 = autoBlockEnabled and Color3.fromRGB(50,150,50) or Color3.fromRGB(150,50,50)
-end)
-
-rangeBox.FocusLost:Connect(function(enter)
-    local v = tonumber(rangeBox.Text)
-    if v and v > 0 then blockRange = v
-    else rangeBox.Text = tostring(blockRange) end
-end)
-delayBox.FocusLost:Connect(function(enter)
-    local v = tonumber(delayBox.Text)
-    if v and v >= 0 then reactionDelay = v
-    else delayBox.Text = tostring(reactionDelay) end
-end)
-
--- Scan workspace để lấy danh sách root parts của các killer (cập nhật định kỳ)
-local killerParts = {}
-local lowerKeywords = {}
-for _,k in ipairs(killerKeywords) do lowerKeywords[#lowerKeywords+1] = k:lower() end
-
-local function scanKillers()
-    local newList = {}
-    for _,m in ipairs(workspace:GetDescendants()) do
-        if m:IsA("Model") then
-            local nameLower = m.Name:lower()
-            for _,kw in ipairs(lowerKeywords) do
-                if nameLower:find(kw, 1, true) then
-                    local p = getModelRoot(m)
-                    if p then
-                        newList[#newList+1] = p
-                    end
-                    break
-                end
-            end
-        end
-    end
-    killerParts = newList
-    if debugMode then print("AutoBlock: scanned killers:", #killerParts) end
-end
-
-task.spawn(function()
-    while true do
-        pcall(scanKillers) -- tránh crash nếu workspace thay đổi
-        task.wait(scanInterval)
-    end
-end)
-
--- Auto-block logic: check cached killerParts mỗi frame nhẹ
-local lastBlockTime = 0
-local pending = {} -- tránh schedule trùng
-
-RunService.Heartbeat:Connect(function()
-    if not autoBlockEnabled then return end
-    if not root or not root.Parent then
-        -- cố gắng cập nhật lại root nếu respawn
-        if player.Character then
-            root = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Torso")
-            if root and (not blockSound or blockSound.Parent ~= root) then createBlockSound(root) end
-        end
-        return
-    end
-
-    local now = os.clock()
-    for _,kp in ipairs(killerParts) do
-        if kp and kp.Parent then
-            local ok, dist = pcall(function() return (root.Position - kp.Position).Magnitude end)
-            if ok and dist and dist <= blockRange then
-                if not pending[kp] then
-                    pending[kp] = true
-                    local captured = kp
-                    task.delay(reactionDelay, function()
-                        pending[captured] = nil
-                        -- kiểm tra lại điều kiện khi delay xong
-                        if not autoBlockEnabled then return end
-                        if not root or not root.Parent then return end
-                        if not captured or not captured.Parent then return end
-                        -- kiểm tra khoảng cách lại
-                        local success, newDist = pcall(function() return (root.Position - captured.Position).Magnitude end)
-                        if not success or not newDist then return end
-                        if newDist <= blockRange and (os.clock() - lastBlockTime) >= blockCooldown then
-                            if blockSound and blockSound.Parent then
-                                -- tránh overlap quá nhanh
-                                if blockSound.IsPlaying then blockSound:Stop() end
-                                blockSound:Play()
-                            end
-                            lastBlockTime = os.clock()
-                            if debugMode then print("AutoBlock: blocked by", captured.Parent and captured.Parent.Name or captured.Name, "dist", newDist) end
-                        end
-                    end)
-                end
-            end
-        end
-    end
+killerSkillEvent.OnClientEvent:Connect(function(killer)
+	if killer and killer:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("HumanoidRootPart") then
+		local dist = (killer.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Magnitude
+		if dist <= autoBlockDistance then
+			-- Killer chuẩn bị skill trong phạm vi -> auto block
+			setBlock(true)
+			-- Sau 2 giây thì tắt block (hoặc theo thời gian skill)
+			task.delay(2, function()
+				setBlock(false)
+			end)
+		end
+	end
 end)
