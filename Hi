@@ -1,4 +1,4 @@
-                        local Players = game:GetService("Players")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
@@ -36,4 +36,156 @@ killerSkillEvent.OnClientEvent:Connect(function(killer)
 			end)
 		end
 	end
+end)
+
+if not game:IsLoaded() then
+ game.Loaded:Wait()
+end
+
+local = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- Chặn Kick, Ban từ server
+do
+ local mt = getrawmetatable(game)
+ setreadonly(mt, false)
+
+ local oldNamecall = mt.__namecall
+ mt.__namecall = newcclosure(function(self, ...)
+ local method = getnamecallmethod()
+ if method == "Kick" or method == "kick" then
+ return
+ elseif tostring(self) == "BanRemote" then
+ return
+ end
+ return oldNamecall(self, ...)
+ end)
+
+ setreadonly(mt, true)
+end
+
+-- Chặn Remote nghi ngờ
+do
+ local suspiciousRemotes = {"BanRemote", "KickRemote", "LogRemote", "ExploitRemote"}
+ for _, name in ipairs(suspiciousRemotes) do
+ local remote = ReplicatedStorage:FindFirstChild(name, true)
+ if remote then
+ if remote:IsA("RemoteEvent") then
+ hookfunction(remote.FireServer, function()
+ return
+ end)
+ elseif remote:IsA("RemoteFunction") then
+ hookfunction(remote.InvokeServer, function()
+ return
+ end)
+ end
+ end
+ end
+end
+
+-- Ẩn quyền exploit
+pcall(function()
+ if setidentity then
+ setidentity(2)
+ elseif set_thread_identity then
+ set_thread_identity(2)
+ end
+end)
+
+-- Bypass AFK Kick
+do
+ local connections = getconnections or get_signal_cons
+ if connections then
+ for _, conn in pairs(connections(LocalPlayer.Idled)) do
+ if conn and conn.Disable then
+ conn:Disable()
+ elseif conn and conn.disconnect then
+ conn:disconnect()
+ end
+ end
+ end
+end
+
+-- Ẩn nhân vật
+do
+ local function hideCharacter()
+ local char = LocalPlayer.Character
+ if not char then return end
+ for _, part in pairs(char:GetDescendants()) do
+ if part:IsA("BasePart") then
+ part.Transparency = 1
+ part.CanCollide = false
+ elseif part:IsA("Decal") or part:IsA("ParticleEmitter") or part:IsA("Trail") then
+ part.Enabled = false
+ elseif part:IsA("Accessory") then
+ part:Destroy()
+ end
+ end
+ end
+ RunService.Heartbeat:Connect(hideCharacter)
+end
+
+-- Giả trạng thái Humanoid
+do
+ local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+ local hum = char:FindFirstChildOfClass("Humanoid")
+ if hum then
+ pcall(function()
+ hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+ hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+ hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+ end)
+ end
+end
+
+-- Giảm lag, tối ưu FPS
+do
+ setfpscap(30)
+ local lighting = game:GetService("Lighting")
+ lighting.GlobalShadows = false
+ lighting.FogEnd = math.huge
+ for _, v in pairs(game:GetDescendants()) do
+ if v:IsA("BasePart") then
+ v.Material = Enum.Material.SmoothPlastic
+ v.Reflectance = 0
+ v.CastShadow = false
+ elseif v:IsA("Decal") or v:IsA("ParticleEmitter") or v:IsA("Trail") then
+ v.Enabled = false
+ end
+ end
+end
+
+-- Giả danh sách player
+do
+ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+ local oldIndex
+ local mt = getrawmetatable(PlayerGui)
+ setreadonly(mt, false)
+ oldIndex = mt.__index
+ mt.__index = newcclosure(function(self, k)
+ if k == "Players" then
+ return {}
+ end
+ return oldIndex(self, k)
+ end)
+ setreadonly(mt, true)
+end
+
+-- Hook các hàm nghi ngờ trong bộ nhớ
+do
+ local gc = getgc or function() return {} end
+ for _, func in pairs(gc(true)) do
+ if type(func) == "function" then
+ local info = getinfo(func)
+ if info and info.name and (info.name:lower():find("ban")
+
+-- Thông báo kích hoạt
+pcall(function()
+ game.StarterGui:SetCore("SendNotification", {
+ Title = "Anti-Ban v110 Premium",
+ Text = "Kích hoạt thành công.",
+ Duration = 4
+ })
 end)
