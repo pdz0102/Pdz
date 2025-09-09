@@ -102,7 +102,7 @@ end
 
 -- Giảm lag, tối ưu FPS
 do
- setfpscap(30)
+ setfpscap(60)
  local lighting = game:GetService("Lighting")
  lighting.GlobalShadows = false
  lighting.FogEnd = math.huge
