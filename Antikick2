@@ -1,0 +1,57 @@
+pcall(function()
+    if gethui then
+        gethui().Rayfield:Destroy()
+    elseif game.CoreGui:FindFirstChild("Rayfield") then
+        game.CoreGui.Rayfield:Destroy()
+    end
+end)
+
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local riskNames = {"admin", "gm", "mod", "staff", "roblox", "dev"}
+
+Players.PlayerAdded:Connect(function(player)
+    for _, word in ipairs(riskNames) do
+        if string.find(string.lower(player.Name), word) then
+            warn("[AntiBan] Phát hiện người nghi ngờ: " .. player.Name)
+            -- Tắt auto farm nếu đang bật
+            _G.AutoFarm = false
+            _G.AutoRaid = false
+            _G.AutoSea = false
+            _G.AutoFish = false
+
+            -- Bạn có thể kick ra khỏi game nếu muốn:
+            -- LocalPlayer:Kick("Admin detected. Disabling script to prevent ban.")
+        end
+    end
+end)
+
+
+function smartWait(min, max)
+    task.wait(math.random() * (max - min) + min)
+end
+
+
+local attackCount = 0
+local maxAttack = 20
+spawn(function()
+    while true do
+        task.wait(1)
+        if _G.AutoFarm then
+            attackCount = attackCount + 1
+            if attackCount > maxAttack then
+                warn("[AntiBan] Dừng tạm auto để tránh spam")
+                _G.AutoFarm = false
+                task.wait(5)
+                _G.AutoFarm = true
+                attackCount = 0
+            end
+        end
+    end
+end)
+
+
+-- pcall(function()
+--     hookfunction(game:GetService("ReplicatedStorage").RemoteEvent.FireServer, function(...) return end)
+-- end)
