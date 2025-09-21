@@ -1,0 +1,22 @@
+-- normal stab
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+task.wait(1)
+
+local ogID = "86545133269813"
+game.Players.LocalPlayer.Character.Humanoid.AnimationPlayed:Connect(function(AnimTrack)
+    if AnimTrack.Animation.AnimationId == "rbxassetid://"..ogID then
+        AnimTrack:Stop()
+        local newanim5000 = Instance.new("Animation")
+        newanim5000.AnimationId = "rbxassetid://84413781229733"
+        local newtrack5000 = game.Players.LocalPlayer.Character.Humanoid:LoadAnimation(newanim5000)
+newtrack5000:Play()
+
+newtrack5000:AdjustSpeed(0.8)
+newtrack5000.Looped = true
+repeat wait() until newtrack5000.TimePosition >= 0.9
+newtrack5000:Stop()
+
+    end
+end)
+
+end)
