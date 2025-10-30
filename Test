@@ -1,35 +1,107 @@
--- GiveShiftLockLocal (Script) — đặt trong ServerScriptService
-local ServerStorage = game:GetService("ServerStorage")
+--// CustomShiftLockPlus (Script)
 local Players = game:GetService("Players")
 
-local TEMPLATE_NAME = "ShiftLockLocalTemplate" -- tên LocalScript mẫu trong ServerStorage
-
-local template = ServerStorage:FindFirstChild(TEMPLATE_NAME)
-if not template then
-    warn("Không tìm thấy template LocalScript '" .. TEMPLATE_NAME .. "' trong ServerStorage.")
-    return
-end
-
 Players.PlayerAdded:Connect(function(player)
-    -- PlayerScripts tồn tại sau khi Player load xong; đôi khi cần chờ
-    player.CharacterAdded:Wait()
-    -- Clone LocalScript vào PlayerScripts để chạy client-side
-    local playerScripts = player:WaitForChild("PlayerScripts", 10)
-    if playerScripts then
-        local clone = template:Clone()
-        clone.Parent = playerScripts
-    else
-        warn("Không tìm thấy PlayerScripts cho " .. player.Name)
-    end
-end)
+	player.CharacterAdded:Wait()
 
--- Tùy chọn: nếu có người đã online (trong môi trường test)
-for _, pl in pairs(Players:GetPlayers()) do
-    if pl.Character then
-        local playerScripts = pl:FindFirstChild("PlayerScripts")
-        if playerScripts and not playerScripts:FindFirstChild(TEMPLATE_NAME) then
-            local clone = template:Clone()
-            clone.Parent = playerScripts
-        end
-    end
-end
+	local playerScripts = player:WaitForChild("PlayerScripts", 10)
+	if not playerScripts then
+		warn("Không tìm thấy PlayerScripts cho "..player.Name)
+		return
+	end
+
+	local localScript = Instance.new("LocalScript")
+	localScript.Name = "CustomShiftLock"
+
+	localScript.Source = [[
+		--// Local Shift Lock + Crosshair "+"
+		local UserInputService = game:GetService("UserInputService")
+		local Players = game:GetService("Players")
+		local player = Players.LocalPlayer
+		local PlayerGui = player:WaitForChild("PlayerGui")
+
+		local TOGGLE_KEY = Enum.KeyCode.LeftShift
+		local isShiftLock = false
+		local debounce = false
+
+		--// Tạo GUI
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "ShiftLockUI"
+		gui.ResetOnSpawn = false
+		gui.Parent = PlayerGui
+
+		--// Tạo dấu "+"
+		local color = Color3.fromRGB(255, 255, 255) -- Màu trắng
+		local lineLength = 16 -- Chiều dài thanh ngang/dọc
+		local thickness = 2   -- Độ dày thanh
+		local gap = 0         -- Không cần khoảng cách, tạo dấu "+"
+		local centerX, centerY = 0.5, 0.5
+
+		-- Thanh ngang
+        local horizontal = Instance.new("Frame")
+        horizontal.Name = "HorizontalLine"
+        horizontal.Size = UDim2.new(0, lineLength, 0, thickness)
+        horizontal.AnchorPoint = Vector2.new(0.5, 0.5)
+        horizontal.Position = UDim2.new(centerX, 0, centerY, 0)
+        horizontal.BackgroundColor3 = color
+        horizontal.BorderSizePixel = 0
+        horizontal.Visible = false
+        horizontal.Parent = gui
+
+		-- Thanh dọc
+        local vertical = Instance.new("Frame")
+        vertical.Name = "VerticalLine"
+        vertical.Size = UDim2.new(0, thickness, 0, lineLength)
+        vertical.AnchorPoint = Vector2.new(0.5, 0.5)
+        vertical.Position = UDim2.new(centerX, 0, centerY, 0)
+        vertical.BackgroundColor3 = color
+        vertical.BorderSizePixel = 0
+        vertical.Visible = false
+        vertical.Parent = gui
+
+		local function setCrossVisible(state)
+			horizontal.Visible = state
+			vertical.Visible = state
+		end
+
+		local function applyShiftLock(state)
+			if not player then return end
+			if state then
+				pcall(function()
+					player.CameraMode = Enum.CameraMode.LockFirstPerson
+				end)
+				setCrossVisible(true)
+			else
+				pcall(function()
+					player.CameraMode = Enum.CameraMode.Classic
+				end)
+				setCrossVisible(false)
+			end
+		end
+
+		local function toggle()
+			if debounce then return end
+			debounce = true
+			isShiftLock = not isShiftLock
+			applyShiftLock(isShiftLock)
+			task.wait(0.25)
+			debounce = false
+		end
+
+		UserInputService.InputBegan:Connect(function(input, gameProcessed)
+			if gameProcessed then return end
+			if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == TOGGLE_KEY then
+				toggle()
+			end
+		end)
+
+		player.CharacterAdded:Connect(function()
+			isShiftLock = false
+			applyShiftLock(isShiftLock)
+		end)
+
+		applyShiftLock(isShiftLock)
+	]]
+
+	localScript.Parent = playerScripts
+end)
