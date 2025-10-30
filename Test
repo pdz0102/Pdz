@@ -1,1 +1,35 @@
+-- GiveShiftLockLocal (Script) — đặt trong ServerScriptService
+local ServerStorage = game:GetService("ServerStorage")
+local Players = game:GetService("Players")
 
+local TEMPLATE_NAME = "ShiftLockLocalTemplate" -- tên LocalScript mẫu trong ServerStorage
+
+local template = ServerStorage:FindFirstChild(TEMPLATE_NAME)
+if not template then
+    warn("Không tìm thấy template LocalScript '" .. TEMPLATE_NAME .. "' trong ServerStorage.")
+    return
+end
+
+Players.PlayerAdded:Connect(function(player)
+    -- PlayerScripts tồn tại sau khi Player load xong; đôi khi cần chờ
+    player.CharacterAdded:Wait()
+    -- Clone LocalScript vào PlayerScripts để chạy client-side
+    local playerScripts = player:WaitForChild("PlayerScripts", 10)
+    if playerScripts then
+        local clone = template:Clone()
+        clone.Parent = playerScripts
+    else
+        warn("Không tìm thấy PlayerScripts cho " .. player.Name)
+    end
+end)
+
+-- Tùy chọn: nếu có người đã online (trong môi trường test)
+for _, pl in pairs(Players:GetPlayers()) do
+    if pl.Character then
+        local playerScripts = pl:FindFirstChild("PlayerScripts")
+        if playerScripts and not playerScripts:FindFirstChild(TEMPLATE_NAME) then
+            local clone = template:Clone()
+            clone.Parent = playerScripts
+        end
+    end
+end
