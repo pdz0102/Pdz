@@ -1,4 +1,4 @@
---// CustomShiftLockPlus (Script)
+--// ShiftLockUI (Script) — đặt trong ServerScriptService
 local Players = game:GetService("Players")
 
 Players.PlayerAdded:Connect(function(player)
@@ -11,10 +11,10 @@ Players.PlayerAdded:Connect(function(player)
 	end
 
 	local localScript = Instance.new("LocalScript")
-	localScript.Name = "CustomShiftLock"
+	localScript.Name = "ShiftLockUI"
 
 	localScript.Source = [[
-		--// Local Shift Lock + Crosshair "+"
+		--// Local Shift Lock + draggable round UI + crosshair "+"
 		local UserInputService = game:GetService("UserInputService")
 		local Players = game:GetService("Players")
 		local player = Players.LocalPlayer
@@ -24,40 +24,64 @@ Players.PlayerAdded:Connect(function(player)
 		local isShiftLock = false
 		local debounce = false
 
-		--// Tạo GUI
+		--// GUI setup
 		local gui = Instance.new("ScreenGui")
-		gui.Name = "ShiftLockUI"
+		gui.Name = "ShiftLockSystem"
 		gui.ResetOnSpawn = false
 		gui.Parent = PlayerGui
 
-		--// Tạo dấu "+"
-		local color = Color3.fromRGB(255, 255, 255) -- Màu trắng
-		local lineLength = 16 -- Chiều dài thanh ngang/dọc
-		local thickness = 2   -- Độ dày thanh
-		local gap = 0         -- Không cần khoảng cách, tạo dấu "+"
+		-- Nút tròn bật/tắt shift lock
+		local button = Instance.new("ImageButton")
+		button.Name = "ShiftLockButton"
+		button.Size = UDim2.new(0, 60, 0, 60)
+		button.Position = UDim2.new(1, -80, 1, -100)
+		button.AnchorPoint = Vector2.new(0.5, 0.5)
+		button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		button.BorderSizePixel = 0
+		button.AutoButtonColor = false
+		button.Image = ""
+		button.BackgroundTransparency = 0.2
+		button.Parent = gui
+		button.ZIndex = 2
+
+		local uicorner = Instance.new("UICorner")
+		uicorner.CornerRadius = UDim.new(1, 0)
+		uicorner.Parent = button
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.Position = UDim2.new(0, 0, 0, 0)
+		label.BackgroundTransparency = 1
+		label.Text = "SHIFT"
+		label.Font = Enum.Font.GothamBold
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.TextScaled = true
+		label.ZIndex = 3
+		label.Parent = button
+
+		-- Crosshair "+"
+		local color = Color3.fromRGB(255, 255, 255)
+		local lineLength = 16
+		local thickness = 2
 		local centerX, centerY = 0.5, 0.5
 
-		-- Thanh ngang
-        local horizontal = Instance.new("Frame")
-        horizontal.Name = "HorizontalLine"
-        horizontal.Size = UDim2.new(0, lineLength, 0, thickness)
-        horizontal.AnchorPoint = Vector2.new(0.5, 0.5)
-        horizontal.Position = UDim2.new(centerX, 0, centerY, 0)
-        horizontal.BackgroundColor3 = color
-        horizontal.BorderSizePixel = 0
-        horizontal.Visible = false
-        horizontal.Parent = gui
+		local horizontal = Instance.new("Frame")
+		horizontal.Size = UDim2.new(0, lineLength, 0, thickness)
+		horizontal.AnchorPoint = Vector2.new(0.5, 0.5)
+		horizontal.Position = UDim2.new(centerX, 0, centerY, 0)
+		horizontal.BackgroundColor3 = color
+		horizontal.BorderSizePixel = 0
+		horizontal.Visible = false
+		horizontal.Parent = gui
 
-		-- Thanh dọc
-        local vertical = Instance.new("Frame")
-        vertical.Name = "VerticalLine"
-        vertical.Size = UDim2.new(0, thickness, 0, lineLength)
-        vertical.AnchorPoint = Vector2.new(0.5, 0.5)
-        vertical.Position = UDim2.new(centerX, 0, centerY, 0)
-        vertical.BackgroundColor3 = color
-        vertical.BorderSizePixel = 0
-        vertical.Visible = false
-        vertical.Parent = gui
+		local vertical = Instance.new("Frame")
+		vertical.Size = UDim2.new(0, thickness, 0, lineLength)
+		vertical.AnchorPoint = Vector2.new(0.5, 0.5)
+		vertical.Position = UDim2.new(centerX, 0, centerY, 0)
+		vertical.BackgroundColor3 = color
+		vertical.BorderSizePixel = 0
+		vertical.Visible = false
+		vertical.Parent = gui
 
 		local function setCrossVisible(state)
 			horizontal.Visible = state
@@ -65,17 +89,18 @@ Players.PlayerAdded:Connect(function(player)
 		end
 
 		local function applyShiftLock(state)
-			if not player then return end
 			if state then
 				pcall(function()
 					player.CameraMode = Enum.CameraMode.LockFirstPerson
 				end)
 				setCrossVisible(true)
+				button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 			else
 				pcall(function()
 					player.CameraMode = Enum.CameraMode.Classic
 				end)
 				setCrossVisible(false)
+				button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 			end
 		end
 
@@ -88,11 +113,17 @@ Players.PlayerAdded:Connect(function(player)
 			debounce = false
 		end
 
+		-- Khi nhấn phím Shift
 		UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if gameProcessed then return end
 			if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == TOGGLE_KEY then
 				toggle()
 			end
+		end)
+
+		-- Khi bấm nút tròn
+		button.MouseButton1Click:Connect(function()
+			toggle()
 		end)
 
 		player.CharacterAdded:Connect(function()
@@ -101,6 +132,41 @@ Players.PlayerAdded:Connect(function(player)
 		end)
 
 		applyShiftLock(isShiftLock)
+
+		-- Dragging (kéo thả nút tròn)
+		local dragging = false
+		local dragStart = nil
+		local startPos = nil
+
+		local function update(input)
+			local delta = input.Position - dragStart
+			local newPos = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+			button.Position = newPos
+		end
+
+		button.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				dragStart = input.Position
+				startPos = button.Position
+				input.Changed:Connect(function()
+					if input.UserInputState == Enum.UserInputState.End then
+						dragging = false
+					end
+				end)
+			end
+		end)
+
+		UserInputService.InputChanged:Connect(function(input)
+			if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+				update(input)
+			end
+		end)
 	]]
 
 	localScript.Parent = playerScripts
